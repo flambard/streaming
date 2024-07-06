@@ -27,6 +27,17 @@ defmodule StreamingTest do
     assert all_combinations_list == Enum.to_list(all_combinations_stream)
   end
 
+  test "mismatches are filtered out" do
+    users = [user: "john", admin: "meg", guest: "barbara"]
+
+    stream =
+      streaming {type, name} when type != :guest <- users do
+        String.upcase(name)
+      end
+
+    assert ["JOHN", "MEG"] == Enum.to_list(stream)
+  end
+
   test "generator and filter" do
     even_integers =
       streaming [x <- [:a, :b, :c], y <- Stream.from_index(1), rem(y, 2) == 0] do

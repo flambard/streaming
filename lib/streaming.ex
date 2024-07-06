@@ -44,7 +44,13 @@ defmodule Streaming do
   end
 
   defp expand_filters(filters, pattern, generator_expression) do
-    for filter <- filters, reduce: generator_expression do
+    pattern_filtered =
+      quote generated: true do
+        unquote(generator_expression)
+        |> Stream.filter(&match?(unquote(pattern), &1))
+      end
+
+    for filter <- filters, reduce: pattern_filtered do
       expression ->
         quote do
           unquote(expression)
