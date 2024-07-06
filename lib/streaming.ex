@@ -21,6 +21,15 @@ defmodule Streaming do
     |> expand_optional_uniq(options)
   end
 
+  defmacro streaming([resource: resource], do: block, after: after_block) do
+    next_fun = expand_block_with_resource(block)
+    after_fun = expand_block_with_resource(after_block)
+
+    quote do
+      Stream.resource(fn -> unquote(resource) end, unquote(next_fun), unquote(after_fun))
+    end
+  end
+
   ###
   ### Private functions
   ###
@@ -68,6 +77,10 @@ defmodule Streaming do
     else
       stream
     end
+  end
+
+  defp expand_block_with_resource(clauses) do
+    {:fn, [], clauses}
   end
 
   defp group_filters_with_generators(generators_and_filters) do
