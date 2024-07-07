@@ -60,13 +60,19 @@ defmodule Streaming do
     end
   end
 
-  defp expand_filters(input, pattern, filters) do
-    for filter <- filters, reduce: input do
-      filter_pipeline ->
-        quote do
-          unquote(filter_pipeline)
-          |> Stream.filter(fn unquote(pattern) -> unquote(filter) end)
-        end
+  defp expand_filters(input, _pattern, []) do
+    input
+  end
+
+  defp expand_filters(input, pattern, [filter | more_filters]) do
+    filter_body =
+      for f <- more_filters, reduce: filter do
+        other_filters -> quote do: unquote(other_filters) && unquote(f)
+      end
+
+    quote do
+      unquote(input)
+      |> Stream.filter(fn unquote(pattern) -> unquote(filter_body) end)
     end
   end
 
