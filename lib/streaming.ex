@@ -16,14 +16,14 @@ defmodule Streaming do
     {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
 
     inner_block =
-      expand_filters(filters, pattern, generator_input)
+      expand_filters(generator_input, pattern, filters)
       |> expand_bottom_generator(pattern, block)
 
     for generator <- more_generators, reduce: inner_block do
       block ->
         {{:<-, _, [pattern, generator_input]}, filters} = generator
 
-        expand_filters(filters, pattern, generator_input)
+        expand_filters(generator_input, pattern, filters)
         |> expand_generator(pattern, block)
     end
     |> expand_optional_uniq(options)
@@ -42,33 +42,36 @@ defmodule Streaming do
   ### Private functions
   ###
 
-  defp expand_bottom_generator(filtered_expression, pattern, block) do
+  defp expand_bottom_generator(input, pattern, block) do
     quote do
-      unquote(filtered_expression)
+      unquote(input)
       |> Stream.map(fn unquote(pattern) -> unquote(block) end)
     end
   end
 
-  defp expand_generator(filtered_expression, pattern, block) do
+  defp expand_generator(input, pattern, block) do
     quote do
-      unquote(filtered_expression)
+      unquote(input)
       |> Stream.flat_map(fn unquote(pattern) -> unquote(block) end)
     end
   end
 
-  defp expand_filters(filters, pattern, generator_expression) do
-    pattern_filtered =
-      quote generated: true do
-        unquote(generator_expression)
-        |> Stream.filter(&match?(unquote(pattern), &1))
-      end
+  defp expand_filters(input, pattern, filters) do
+    pattern_filtered = expand_pattern_filter(input, pattern)
 
     for filter <- filters, reduce: pattern_filtered do
-      expression ->
+      filter_pipeline ->
         quote do
-          unquote(expression)
+          unquote(filter_pipeline)
           |> Stream.filter(fn unquote(pattern) -> unquote(filter) end)
         end
+    end
+  end
+
+  defp expand_pattern_filter(input, pattern) do
+    quote generated: true do
+      unquote(input)
+      |> Stream.filter(&match?(unquote(pattern), &1))
     end
   end
 
