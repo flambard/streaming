@@ -6,7 +6,7 @@ defmodule StreamingTest do
 
   test "single infinite generator" do
     doubles_stream =
-      streaming x <- Stream.from_index(1) do
+      streaming x <- 1..100 do
         x * 2
       end
 
@@ -40,7 +40,7 @@ defmodule StreamingTest do
 
   test "generator and filter" do
     even_integers =
-      streaming [x <- [:a, :b, :c], y <- Stream.from_index(1), rem(y, 2) == 0] do
+      streaming [x <- [:a, :b, :c], y <- 1..100, rem(y, 2) == 0] do
         {x, y}
       end
 
@@ -50,7 +50,7 @@ defmodule StreamingTest do
   test "multiple filters" do
     even_integers =
       streaming [
-        x <- Stream.from_index(1),
+        x <- 1..100,
         rem(x, 2) == 0,
         y <- [:a, :b, :c],
         x != y
