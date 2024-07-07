@@ -16,10 +16,20 @@ defmodule Streaming do
     {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
 
     inner_block =
-      generator_input
-      |> expand_pattern_filter(pattern)
-      |> expand_filters(pattern, filters)
-      |> expand_bottom_generator(pattern, block)
+      cond do
+        init = Keyword.get(options, :transform) ->
+          generator_input
+          |> expand_pattern_filter(pattern)
+          |> expand_filters(pattern, filters)
+          |> expand_transform(pattern, init, block)
+
+        true ->
+          ## Normal mapping
+          generator_input
+          |> expand_pattern_filter(pattern)
+          |> expand_filters(pattern, filters)
+          |> expand_bottom_generator(pattern, block)
+      end
 
     for generator <- more_generators, reduce: inner_block do
       block ->
@@ -91,6 +101,27 @@ defmodule Streaming do
       end
     else
       stream
+    end
+  end
+
+  defp expand_transform(input, pattern, init, block) do
+    transformer_fun = {:fn, [], insert_clause_argument(pattern, block)}
+
+    quote generated: true do
+      unquote(input)
+      |> Stream.transform(unquote(init), unquote(transformer_fun))
+    end
+  end
+
+  defp insert_clause_argument(pattern, block) do
+    for {:->, meta, [[arg], body]} <- block do
+      arglist =
+        case arg do
+          {:when, meta, [var, condition]} -> [{:when, meta, [pattern, var, condition]}]
+          arg -> [pattern, arg]
+        end
+
+      {:->, meta, [arglist, body]}
     end
   end
 
