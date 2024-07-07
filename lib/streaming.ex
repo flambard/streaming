@@ -16,14 +16,18 @@ defmodule Streaming do
     {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
 
     inner_block =
-      expand_filters(generator_input, pattern, filters)
+      generator_input
+      |> expand_pattern_filter(pattern)
+      |> expand_filters(pattern, filters)
       |> expand_bottom_generator(pattern, block)
 
     for generator <- more_generators, reduce: inner_block do
       block ->
         {{:<-, _, [pattern, generator_input]}, filters} = generator
 
-        expand_filters(generator_input, pattern, filters)
+        generator_input
+        |> expand_pattern_filter(pattern)
+        |> expand_filters(pattern, filters)
         |> expand_generator(pattern, block)
     end
     |> expand_optional_uniq(options)
@@ -57,9 +61,7 @@ defmodule Streaming do
   end
 
   defp expand_filters(input, pattern, filters) do
-    pattern_filtered = expand_pattern_filter(input, pattern)
-
-    for filter <- filters, reduce: pattern_filtered do
+    for filter <- filters, reduce: input do
       filter_pipeline ->
         quote do
           unquote(filter_pipeline)
