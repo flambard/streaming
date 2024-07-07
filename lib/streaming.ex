@@ -13,10 +13,18 @@ defmodule Streaming do
     {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
     [bottom_generator | more_generators] = group_filters_with_generators(generators_and_filters)
 
-    inner_block = expand_bottom_generator(bottom_generator, block)
+    {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
+
+    inner_block =
+      expand_filters(filters, pattern, generator_input)
+      |> expand_bottom_generator(pattern, block)
 
     for generator <- more_generators, reduce: inner_block do
-      block -> expand_generator(generator, block)
+      block ->
+        {{:<-, _, [pattern, generator_input]}, filters} = generator
+
+        expand_filters(filters, pattern, generator_input)
+        |> expand_generator(pattern, block)
     end
     |> expand_optional_uniq(options)
   end
@@ -34,18 +42,14 @@ defmodule Streaming do
   ### Private functions
   ###
 
-  defp expand_bottom_generator({{:<-, _, [pattern, generator_expression]}, filters}, block) do
-    filtered_expression = expand_filters(filters, pattern, generator_expression)
-
+  defp expand_bottom_generator(filtered_expression, pattern, block) do
     quote do
       unquote(filtered_expression)
       |> Stream.map(fn unquote(pattern) -> unquote(block) end)
     end
   end
 
-  defp expand_generator({{:<-, _, [pattern, generator_expression]}, filters}, block) do
-    filtered_expression = expand_filters(filters, pattern, generator_expression)
-
+  defp expand_generator(filtered_expression, pattern, block) do
     quote do
       unquote(filtered_expression)
       |> Stream.flat_map(fn unquote(pattern) -> unquote(block) end)
