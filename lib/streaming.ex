@@ -9,7 +9,9 @@ defmodule Streaming do
     end
   end
 
-  defmacro streaming(args, do: block) do
+  defmacro streaming(args, keyword_options) do
+    {:ok, block} = Keyword.fetch(keyword_options, :do)
+
     {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
     [bottom_generator | more_generators] = group_filters_with_generators(generators_and_filters)
 
@@ -18,10 +20,12 @@ defmodule Streaming do
     inner_block =
       cond do
         init = Keyword.get(options, :transform) ->
+          after_block = Keyword.get(keyword_options, :after)
+
           generator_input
           |> expand_pattern_filter(pattern)
           |> expand_filters(pattern, filters)
-          |> expand_transform(pattern, init, block)
+          |> expand_transform(pattern, init, block, after_block)
 
         true ->
           ## Normal mapping
@@ -104,16 +108,27 @@ defmodule Streaming do
     end
   end
 
-  defp expand_transform(input, pattern, init, block) do
-    transformer_fun = {:fn, [], insert_clause_argument(pattern, block)}
+  defp expand_transform(input, pattern, init, block, nil) do
+    reducer_fun = {:fn, [], inject_clause_argument(pattern, block)}
 
     quote generated: true do
       unquote(input)
-      |> Stream.transform(unquote(init), unquote(transformer_fun))
+      |> Stream.transform(unquote(init), unquote(reducer_fun))
     end
   end
 
-  defp insert_clause_argument(pattern, block) do
+  defp expand_transform(input, pattern, init, block, after_block) do
+    start_fun = quote do: fn -> unquote(init) end
+    reducer_fun = {:fn, [], inject_clause_argument(pattern, block)}
+    after_fun = {:fn, [], after_block}
+
+    quote generated: true do
+      unquote(input)
+      |> Stream.transform(unquote(start_fun), unquote(reducer_fun), unquote(after_fun))
+    end
+  end
+
+  defp inject_clause_argument(pattern, block) do
     for {:->, meta, [[arg], body]} <- block do
       arglist =
         case arg do

@@ -62,4 +62,20 @@ defmodule TransformTest do
 
     assert [1001, 1002, 1003] == Enum.to_list(stream)
   end
+
+  test "transform with after-clause" do
+    tuple_stream =
+      streaming [i <- 1..100, transform: StringIO.open("string") |> elem(1)] do
+        pid ->
+          case IO.getn(pid, "", 1) do
+            :eof -> {:halt, pid}
+            char -> {[{i, char}], pid}
+          end
+      after
+        pid -> StringIO.close(pid)
+      end
+
+    expected = [{1, "s"}, {2, "t"}, {3, "r"}, {4, "i"}, {5, "n"}, {6, "g"}]
+    assert expected == Enum.to_list(tuple_stream)
+  end
 end
