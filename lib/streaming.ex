@@ -21,21 +21,22 @@ defmodule Streaming do
 
     {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
 
+    filtered_input =
+      generator_input
+      |> expand_pattern_filter(pattern)
+      |> expand_filters(pattern, filters)
+
     inner_block =
       cond do
         init = Keyword.get(options, :transform) ->
           after_block = Keyword.get(keyword_options, :after)
 
-          generator_input
-          |> expand_pattern_filter(pattern)
-          |> expand_filters(pattern, filters)
+          filtered_input
           |> expand_transform(pattern, init, block, after_block)
 
         true ->
           ## Normal mapping
-          generator_input
-          |> expand_pattern_filter(pattern)
-          |> expand_filters(pattern, filters)
+          filtered_input
           |> expand_bottom_generator(pattern, block)
       end
 
