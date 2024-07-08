@@ -9,6 +9,13 @@ defmodule Streaming do
     end
   end
 
+  defmacro streaming([{:unfold, init} | options], do: block) do
+    init
+    |> expand_unfold(block)
+    |> expand_optional_uniq(options)
+    |> expand_optional_into(options)
+  end
+
   defmacro streaming([{:resource, resource} | options], do: block, after: after_block) do
     resource
     |> expand_resource(block, after_block)
@@ -98,6 +105,14 @@ defmodule Streaming do
     quote generated: true do
       unquote(input)
       |> Stream.filter(&match?(unquote(pattern), &1))
+    end
+  end
+
+  defp expand_unfold(init, block) do
+    next_fun = {:fn, [], block}
+
+    quote do
+      Stream.unfold(unquote(init), unquote(next_fun))
     end
   end
 
