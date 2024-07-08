@@ -54,6 +54,7 @@ defmodule Streaming do
         |> expand_generator(pattern, block)
     end
     |> expand_optional_uniq(options)
+    |> expand_optional_into(options)
   end
 
   ###
@@ -97,17 +98,6 @@ defmodule Streaming do
     end
   end
 
-  defp expand_optional_uniq(stream, options) do
-    if Keyword.get(options, :uniq) == true do
-      quote do
-        unquote(stream)
-        |> Stream.uniq()
-      end
-    else
-      stream
-    end
-  end
-
   defp expand_resource(resource, block, after_block) do
     start_fun = quote do: fn -> unquote(resource) end
     next_fun = {:fn, [], block}
@@ -144,6 +134,28 @@ defmodule Streaming do
     quote generated: true do
       unquote(input)
       |> Stream.scan(unquote(init), unquote(scanner_fun))
+    end
+  end
+
+  defp expand_optional_uniq(stream, options) do
+    if Keyword.get(options, :uniq) == true do
+      quote do
+        unquote(stream)
+        |> Stream.uniq()
+      end
+    else
+      stream
+    end
+  end
+
+  defp expand_optional_into(stream, options) do
+    if collectable = Keyword.get(options, :into) do
+      quote do
+        unquote(stream)
+        |> Stream.into(unquote(collectable))
+      end
+    else
+      stream
     end
   end
 
