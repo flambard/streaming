@@ -9,6 +9,10 @@ defmodule Streaming do
     end
   end
 
+  defmacro streaming([resource: resource], do: block, after: after_block) do
+    expand_resource(resource, block, after_block)
+  end
+
   defmacro streaming(args, keyword_options) do
     {:ok, block} = Keyword.fetch(keyword_options, :do)
 
@@ -45,15 +49,6 @@ defmodule Streaming do
         |> expand_generator(pattern, block)
     end
     |> expand_optional_uniq(options)
-  end
-
-  defmacro streaming([resource: resource], do: block, after: after_block) do
-    next_fun = expand_block_with_resource(block)
-    after_fun = expand_block_with_resource(after_block)
-
-    quote do
-      Stream.resource(fn -> unquote(resource) end, unquote(next_fun), unquote(after_fun))
-    end
   end
 
   ###
@@ -108,6 +103,16 @@ defmodule Streaming do
     end
   end
 
+  defp expand_resource(resource, block, after_block) do
+    start_fun = quote do: fn -> unquote(resource) end
+    next_fun = {:fn, [], block}
+    after_fun = {:fn, [], after_block}
+
+    quote do
+      Stream.resource(unquote(start_fun), unquote(next_fun), unquote(after_fun))
+    end
+  end
+
   defp expand_transform(input, pattern, init, block, nil) do
     reducer_fun = {:fn, [], inject_clause_argument(pattern, block)}
 
@@ -138,10 +143,6 @@ defmodule Streaming do
 
       {:->, meta, [arglist, body]}
     end
-  end
-
-  defp expand_block_with_resource(clauses) do
-    {:fn, [], clauses}
   end
 
   defp group_filters_with_generators(generators_and_filters) do
