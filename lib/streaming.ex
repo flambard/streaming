@@ -9,8 +9,11 @@ defmodule Streaming do
     end
   end
 
-  defmacro streaming([resource: resource], do: block, after: after_block) do
-    expand_resource(resource, block, after_block)
+  defmacro streaming([{:resource, resource} | options], do: block, after: after_block) do
+    resource
+    |> expand_resource(block, after_block)
+    |> expand_optional_uniq(options)
+    |> expand_optional_into(options)
   end
 
   defmacro streaming(args, keyword_options) do

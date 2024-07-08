@@ -52,4 +52,24 @@ defmodule ResourceTest do
 
     assert ["s", "t", "r", "i", "n", "g"] == Enum.to_list(character_stream)
   end
+
+  test "resource with uniq and into" do
+    {:ok, io_device} = StringIO.open("")
+    io_stream = IO.stream(io_device, :line)
+
+    character_stream =
+      streaming resource: StringIO.open("Elixir") |> elem(1), into: io_stream, uniq: true do
+        pid ->
+          case IO.getn(pid, "", 1) do
+            :eof -> {:halt, pid}
+            char -> {[char], pid}
+          end
+      after
+        pid -> StringIO.close(pid)
+      end
+
+    assert {"", ""} == StringIO.contents(io_device)
+    assert ["E", "l", "i", "x", "r"] == Enum.to_list(character_stream)
+    assert {"", "Elixr"} == StringIO.contents(io_device)
+  end
 end
