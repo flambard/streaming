@@ -34,6 +34,10 @@ defmodule Streaming do
           filtered_input
           |> expand_transform(pattern, init, block, after_block)
 
+        init = Keyword.get(options, :scan) ->
+          filtered_input
+          |> expand_scan(pattern, init, block)
+
         true ->
           ## Normal mapping
           filtered_input
@@ -131,6 +135,15 @@ defmodule Streaming do
     quote generated: true do
       unquote(input)
       |> Stream.transform(unquote(start_fun), unquote(reducer_fun), unquote(after_fun))
+    end
+  end
+
+  defp expand_scan(input, pattern, init, block) do
+    scanner_fun = {:fn, [], inject_clause_argument(pattern, block)}
+
+    quote generated: true do
+      unquote(input)
+      |> Stream.scan(unquote(init), unquote(scanner_fun))
     end
   end
 
