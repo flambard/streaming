@@ -9,22 +9,22 @@ defmodule Streaming do
     end
   end
 
-  defmacro streaming([{:unfold, init} | options], do: block) do
+  defmacro streaming([{:unfold, init} | options], do: do_block) do
     init
-    |> expand_unfold(block)
+    |> expand_unfold(do_block)
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defmacro streaming([{:resource, resource} | options], do: block, after: after_block) do
+  defmacro streaming([{:resource, resource} | options], do: do_block, after: after_block) do
     resource
-    |> expand_resource(block, after_block)
+    |> expand_resource(do_block, after_block)
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defmacro streaming(args, keyword_options) do
-    {:ok, block} = Keyword.fetch(keyword_options, :do)
+  defmacro streaming(args, block) when is_list(args) do
+    {:ok, do_block} = Keyword.fetch(block, :do)
 
     {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
     [bottom_generator | more_generators] = group_filters_with_generators(generators_and_filters)
@@ -39,19 +39,19 @@ defmodule Streaming do
     inner_block =
       cond do
         init = Keyword.get(options, :transform) ->
-          after_block = Keyword.get(keyword_options, :after)
+          after_block = Keyword.get(block, :after)
 
           filtered_input
-          |> expand_transform(pattern, init, block, after_block)
+          |> expand_transform(pattern, init, do_block, after_block)
 
         init = Keyword.get(options, :scan) ->
           filtered_input
-          |> expand_scan(pattern, init, block)
+          |> expand_scan(pattern, init, do_block)
 
         true ->
           ## Normal mapping
           filtered_input
-          |> expand_bottom_generator(pattern, block)
+          |> expand_bottom_generator(pattern, do_block)
       end
 
     for generator <- more_generators, reduce: inner_block do
