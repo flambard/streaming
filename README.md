@@ -1,10 +1,24 @@
 # Streaming
 
-Syntactic sugar macro for generating streams, very much inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1) in Elixir.
+Syntactic sugar macro (`streaming`) for generating [streams](https://hexdocs.pm/elixir/Stream.html),
+inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1) in Elixir.
 
+## `streaming` vs `for`
 
+| Feature     | `for`                                | `streaming`            |
+|-------------|--------------------------------------|------------------------|
+| Evaluation  | Eager                                | Lazy                   |
+| Returns     | Enumerable (or anything if reducing) | Stream                 |
+| Generators  | yes                                  | yes                    |
+| Filters     | yes                                  | yes                    |
+| `uniq`      | yes                                  | yes                    |
+| `into`      | collection returned                  | collect as side-effect |
+| `reduce`    | yes                                  | n/a - just use `for`   |
+| `scan`      | no                                   | yes                    |
+| `unfold`    | n/a                                  | yes                    |
+| `resource`  | n/a                                  | yes                    |
+| `transform` | n/a                                  | yes                    |
 
-`streaming` is lazy and always returns a [`Stream`](https://hexdocs.pm/elixir/Stream.html).
 
 ## Examples
 
@@ -47,7 +61,8 @@ end
 => ~c"ab"
 ```
 
-Infinite stream of multiples of 2 with `unfold`, based on [`Stream.unfold/2`](https://hexdocs.pm/elixir/Stream.html#unfold/2).
+Infinite stream of multiples of 2 with `unfold`, based on
+[`Stream.unfold/2`](https://hexdocs.pm/elixir/Stream.html#unfold/2).
 ```elixir
 streaming unfold: 1 do
   n -> {n, n * 2}
@@ -57,7 +72,8 @@ end
 => [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 ```
 
-Sugar for [`Stream.scan/3`](https://hexdocs.pm/elixir/Stream.html#scan/3) is included (but not [`Stream.scan/2`](https://hexdocs.pm/elixir/Stream.html#scan/2))
+Sugar for [`Stream.scan/3`](https://hexdocs.pm/elixir/Stream.html#scan/3) is included
+(but not [`Stream.scan/2`](https://hexdocs.pm/elixir/Stream.html#scan/2))
 ```elixir
 streaming x <- 1..5, scan: 0 do
   acc -> x + acc
@@ -99,7 +115,8 @@ end
 => [{1, "s"}, {2, "t"}, {3, "r"}, {4, "i"}, {5, "n"}, {6, "g"}]
 ```
 
-Note that `into` uses [`Stream.into/2`](https://hexdocs.pm/elixir/Stream.html#into/3) and streams values into a collectable _as a side-effect_.
+Note that `into` uses [`Stream.into/2`](https://hexdocs.pm/elixir/Stream.html#into/3)
+and streams values into a collectable _as a side-effect_.
 ```elixir
 {:ok, io_device} = StringIO.open("")
 io_stream = IO.stream(io_device, :line)
