@@ -1,7 +1,6 @@
 # Streaming
 
-Syntactic sugar macro (`streaming`) for generating [streams](https://hexdocs.pm/elixir/Stream.html),
-inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1) in Elixir.
+`streaming` is a [stream](https://hexdocs.pm/elixir/Stream.html) comprehension macro for Elixir inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1).
 
 ## `streaming` vs `for`
 
