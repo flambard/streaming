@@ -1,38 +1,73 @@
 defmodule Streaming do
   @moduledoc false
 
-  defmacro streaming({:<-, _, [_, _]} = generator, do: block) do
-    quote do
-      streaming [unquote(generator)] do
-        unquote(block)
-      end
+  defmacro streaming(args, block) when is_list(args) do
+    {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
+    expand_streaming(generators_and_filters, options, block)
+  end
+
+  ###
+  ### Aesthetics
+  ###
+
+  defmacro streaming(arg, block) do
+    if Keyword.keyword?(arg) do
+      expand_streaming([], arg, block)
+    else
+      expand_streaming([arg], [], block)
     end
   end
 
-  defmacro streaming([{:unfold, init} | options], do: do_block) do
+  defmacro streaming(arg1, arg2, block) do
+    if Keyword.keyword?(arg2) do
+      expand_streaming([arg1], arg2, block)
+    else
+      expand_streaming([arg1, arg2], [], block)
+    end
+  end
+
+  defmacro streaming(arg1, arg2, arg3, block) do
+    if Keyword.keyword?(arg3) do
+      expand_streaming([arg1, arg2], arg3, block)
+    else
+      expand_streaming([arg1, arg2, arg3], [], block)
+    end
+  end
+
+  defmacro streaming(arg1, arg2, arg3, arg4, block) do
+    if Keyword.keyword?(arg4) do
+      expand_streaming([arg1, arg2, arg3], arg4, block)
+    else
+      expand_streaming([arg1, arg2, arg3, arg4], [], block)
+    end
+  end
+
+  ###
+  ### Private functions
+  ###
+
+  defp expand_streaming([], [{:unfold, init} | options], do: do_block) do
     init
     |> expand_unfold(do_block)
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defmacro streaming([{:resource, resource} | options], do: do_block, after: after_block) do
+  defp expand_streaming([], [{:resource, resource} | options], do: do_block, after: after_block) do
     resource
     |> expand_resource(do_block, after_block)
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defmacro streaming(args, block) when is_list(args) do
+  defp expand_streaming(generators_and_filters, options, block) do
     {:ok, do_block} = Keyword.fetch(block, :do)
 
-    {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
-    [bottom_generator | more_generators] = group_filters_with_generators(generators_and_filters)
-
-    {{:<-, _, [pattern, generator_input]}, filters} = bottom_generator
+    [{{:<-, _, [pattern, input]}, filters} | more_generators] =
+      group_filters_with_generators(generators_and_filters)
 
     filtered_input =
-      generator_input
+      input
       |> expand_pattern_filter(pattern)
       |> expand_filters(pattern, filters)
 
@@ -54,11 +89,9 @@ defmodule Streaming do
           |> expand_bottom_generator(pattern, do_block)
       end
 
-    for generator <- more_generators, reduce: inner_block do
+    for {{:<-, _, [pattern, input]}, filters} <- more_generators, reduce: inner_block do
       block ->
-        {{:<-, _, [pattern, generator_input]}, filters} = generator
-
-        generator_input
+        input
         |> expand_pattern_filter(pattern)
         |> expand_filters(pattern, filters)
         |> expand_generator(pattern, block)
@@ -66,10 +99,6 @@ defmodule Streaming do
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
-
-  ###
-  ### Private functions
-  ###
 
   defp expand_bottom_generator(input, pattern, block) do
     quote do

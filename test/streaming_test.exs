@@ -15,7 +15,7 @@ defmodule StreamingTest do
 
   test "multiple generators" do
     all_combinations_stream =
-      streaming [x <- [1, 2], y <- [3, 4], z <- [5, 6]] do
+      streaming x <- [1, 2], y <- [3, 4], z <- [5, 6] do
         {x, y, z}
       end
 
@@ -40,7 +40,7 @@ defmodule StreamingTest do
 
   test "generator and filter" do
     even_integers =
-      streaming [x <- [:a, :b, :c], y <- 1..100, rem(y, 2) == 0] do
+      streaming x <- [:a, :b, :c], y <- 1..100, rem(y, 2) == 0 do
         {x, y}
       end
 
@@ -49,12 +49,10 @@ defmodule StreamingTest do
 
   test "multiple filters" do
     even_integers =
-      streaming [
-        x <- 1..100,
-        rem(x, 2) == 0,
-        y <- [:a, :b, :c],
-        x != y
-      ] do
+      streaming x <- 1..100,
+                rem(x, 2) == 0,
+                y <- [:a, :b, :c],
+                x != y do
         {x, y}
       end
 
@@ -63,7 +61,7 @@ defmodule StreamingTest do
 
   test "uniq" do
     character_stream =
-      streaming [x <- ~c"ABBA", uniq: true] do
+      streaming x <- ~c"ABBA", uniq: true do
         x
       end
 

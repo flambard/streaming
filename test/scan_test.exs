@@ -11,7 +11,7 @@ defmodule ScanTest do
 
   test "scan" do
     stream =
-      streaming [x <- 1..5, scan: 0] do
+      streaming x <- 1..5, scan: 0 do
         acc -> x + acc
       end
 

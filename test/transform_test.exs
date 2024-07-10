@@ -21,7 +21,7 @@ defmodule TransformTest do
     n = 3
 
     stream =
-      streaming [i <- enum, transform: 0] do
+      streaming i <- enum, transform: 0 do
         acc -> if acc < n, do: {[i], acc + 1}, else: {:halt, acc}
       end
 
@@ -30,7 +30,7 @@ defmodule TransformTest do
 
   test "transform with multiple generators" do
     stream =
-      streaming [x <- 1..3, y <- 4..6, transform: 0] do
+      streaming x <- 1..3, y <- 4..6, transform: 0 do
         acc -> if acc < 2, do: {[x, y], acc + 1}, else: {:halt, acc}
       end
 
@@ -43,7 +43,7 @@ defmodule TransformTest do
     n = 3
 
     stream =
-      streaming [i <- enum, rem(i, 2) == 0, transform: 0] do
+      streaming i <- enum, rem(i, 2) == 0, transform: 0 do
         acc -> if acc < n, do: {[i], acc + 1}, else: {:halt, acc}
       end
 
@@ -55,7 +55,7 @@ defmodule TransformTest do
     n = 3
 
     stream =
-      streaming [i <- enum, transform: 0] do
+      streaming i <- enum, transform: 0 do
         acc when acc < n -> {[i], acc + 1}
         acc -> {:halt, acc}
       end
@@ -65,7 +65,7 @@ defmodule TransformTest do
 
   test "transform with after-clause" do
     tuple_stream =
-      streaming [i <- 1..100, transform: StringIO.open("string") |> elem(1)] do
+      streaming i <- 1..100, transform: StringIO.open("string") |> elem(1) do
         pid ->
           case IO.getn(pid, "", 1) do
             :eof -> {:halt, pid}

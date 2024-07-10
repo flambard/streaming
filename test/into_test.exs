@@ -7,7 +7,7 @@ defmodule IntoTest do
     io_stream = IO.stream(io_device, :line)
 
     stream =
-      streaming [s <- ["hello", "there"], into: io_stream] do
+      streaming s <- ["hello", "there"], into: io_stream do
         String.capitalize(s)
       end
 
