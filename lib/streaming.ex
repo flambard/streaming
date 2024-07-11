@@ -63,29 +63,38 @@ defmodule Streaming do
   defp expand_streaming(generators_and_filters, options, block) do
     {:ok, do_block} = Keyword.fetch(block, :do)
 
-    [{{:<-, _, [pattern, input]}, filters} | more_generators] =
+    [{inner_generator, filters} | more_generators] =
       group_filters_with_generators(generators_and_filters)
 
-    filtered_input =
-      input
-      |> expand_pattern_filter(pattern)
-      |> expand_filters(pattern, filters)
-
     inner_block =
-      cond do
-        init = Keyword.get(options, :transform) ->
-          after_block = Keyword.get(block, :after)
+      case inner_generator do
+        {:<<>>, _, fields} ->
+          {vars, [{:<-, _, [last_var, input]}]} = Enum.split(fields, -1)
+          pattern = quote do: <<unquote_splicing(vars), unquote(last_var)>>
+          expand_bitstring_generator(input, pattern, filters, do_block)
 
-          filtered_input
-          |> expand_transform(pattern, init, do_block, after_block)
+        {:<-, _, [pattern, input]} ->
+          cond do
+            init = Keyword.get(options, :transform) ->
+              after_block = Keyword.get(do_block, :after)
 
-        init = Keyword.get(options, :scan) ->
-          filtered_input
-          |> expand_scan(pattern, init, do_block)
+              input
+              |> expand_pattern_filter(pattern)
+              |> expand_filters(pattern, filters)
+              |> expand_transform(pattern, init, do_block, after_block)
 
-        true ->
-          filtered_input
-          |> expand_mapping_generator(pattern, do_block)
+            init = Keyword.get(options, :scan) ->
+              input
+              |> expand_pattern_filter(pattern)
+              |> expand_filters(pattern, filters)
+              |> expand_scan(pattern, init, do_block)
+
+            true ->
+              input
+              |> expand_pattern_filter(pattern)
+              |> expand_filters(pattern, filters)
+              |> expand_map(pattern, do_block)
+          end
       end
 
     for {{:<-, _, [pattern, input]}, filters} <- more_generators, reduce: inner_block do
@@ -93,17 +102,43 @@ defmodule Streaming do
         input
         |> expand_pattern_filter(pattern)
         |> expand_filters(pattern, filters)
-        |> expand_mapping_generator(pattern, block)
+        |> expand_map(pattern, block)
         |> expand_concat()
     end
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defp expand_mapping_generator(input, pattern, block) do
+  defp expand_bitstring_generator(input, pattern, filters, block) do
+    {:<<>>, _, vars} = pattern
+    rest = Macro.unique_var(:acc, __MODULE__)
+    body = expand_bitstring_generator_body(filters, block)
+
     quote do
-      unquote(input)
-      |> Stream.map(fn unquote(pattern) -> unquote(block) end)
+      Stream.resource(
+        fn -> unquote(input) end,
+        fn
+          <<unquote_splicing(vars), unquote(rest)::binary>> -> {unquote(body), unquote(rest)}
+          <<unquote(rest)::binary>> -> {:halt, unquote(rest)}
+        end,
+        fn <<_rest::binary>> -> :ok end
+      )
+    end
+  end
+
+  defp expand_bitstring_generator_body([], block) do
+    [block]
+  end
+
+  defp expand_bitstring_generator_body(filters, block) do
+    conditions = expand_conditions(filters)
+
+    quote do
+      if unquote(conditions) do
+        [unquote(block)]
+      else
+        []
+      end
     end
   end
 
@@ -111,11 +146,8 @@ defmodule Streaming do
     input
   end
 
-  defp expand_filters(input, pattern, [filter | more_filters]) do
-    filter_body =
-      for f <- more_filters, reduce: filter do
-        other_filters -> quote do: unquote(other_filters) && unquote(f)
-      end
+  defp expand_filters(input, pattern, filters) do
+    filter_body = expand_conditions(filters)
 
     quote do
       unquote(input)
@@ -123,10 +155,23 @@ defmodule Streaming do
     end
   end
 
+  defp expand_conditions([filter | more_filters]) do
+    for f <- more_filters, reduce: filter do
+      other_filters -> quote do: unquote(other_filters) && unquote(f)
+    end
+  end
+
   defp expand_pattern_filter(input, pattern) do
     quote generated: true do
       unquote(input)
       |> Stream.filter(&match?(unquote(pattern), &1))
+    end
+  end
+
+  defp expand_map(input, pattern, block) do
+    quote do
+      unquote(input)
+      |> Stream.map(fn unquote(pattern) -> unquote(block) end)
     end
   end
 
@@ -229,6 +274,15 @@ defmodule Streaming do
   defp group_filters_with_generators([{:<-, _, [_, _]} = generator | rest], acc) do
     {filters, more} = Enum.split_while(rest, &(not generator?(&1)))
     group_filters_with_generators(more, [{generator, filters} | acc])
+  end
+
+  defp group_filters_with_generators([{:<<>>, _, _} = bitstring_generator | rest], acc) do
+    {filters, more} = Enum.split_while(rest, &(not generator?(&1)))
+    group_filters_with_generators(more, [{bitstring_generator, filters} | acc])
+  end
+
+  defp generator?({:<<>>, _, fields}) do
+    fields |> List.last() |> generator?()
   end
 
   defp generator?(arg) do

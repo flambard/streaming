@@ -4,19 +4,20 @@
 
 ## `streaming` vs `for`
 
-| Feature     | `for`                                | `streaming`            |
-|-------------|--------------------------------------|------------------------|
-| Evaluation  | Eager                                | Lazy                   |
-| Returns     | Enumerable (or anything if reducing) | Stream                 |
-| Generators  | yes                                  | yes                    |
-| Filters     | yes                                  | yes                    |
-| `uniq`      | yes                                  | yes                    |
-| `into`      | collection returned                  | collect as side-effect |
-| `reduce`    | yes                                  | n/a - just use `for`   |
-| `scan`      | no                                   | yes                    |
-| `unfold`    | n/a                                  | yes                    |
-| `resource`  | n/a                                  | yes                    |
-| `transform` | n/a                                  | yes                    |
+| Feature              | `for`                                | `streaming`            |
+|----------------------|--------------------------------------|------------------------|
+| Evaluation           | Eager                                | Lazy                   |
+| Returns              | Enumerable (or anything if reducing) | Stream                 |
+| Generators           | yes                                  | yes                    |
+| Bitstring generators | yes                                  | WIP                    |
+| Filters              | yes                                  | yes                    |
+| `uniq`               | yes                                  | yes                    |
+| `into`               | collection returned                  | collect as side-effect |
+| `reduce`             | yes                                  | n/a - just use `for`   |
+| `scan`               | no                                   | yes                    |
+| `unfold`             | n/a                                  | yes                    |
+| `resource`           | n/a                                  | yes                    |
+| `transform`          | n/a                                  | yes                    |
 
 
 ## Examples
