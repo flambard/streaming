@@ -84,9 +84,8 @@ defmodule Streaming do
           |> expand_scan(pattern, init, do_block)
 
         true ->
-          ## Normal mapping
           filtered_input
-          |> expand_bottom_generator(pattern, do_block)
+          |> expand_mapping_generator(pattern, do_block)
       end
 
     for {{:<-, _, [pattern, input]}, filters} <- more_generators, reduce: inner_block do
@@ -94,23 +93,17 @@ defmodule Streaming do
         input
         |> expand_pattern_filter(pattern)
         |> expand_filters(pattern, filters)
-        |> expand_generator(pattern, block)
+        |> expand_mapping_generator(pattern, block)
+        |> expand_concat()
     end
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
   end
 
-  defp expand_bottom_generator(input, pattern, block) do
+  defp expand_mapping_generator(input, pattern, block) do
     quote do
       unquote(input)
       |> Stream.map(fn unquote(pattern) -> unquote(block) end)
-    end
-  end
-
-  defp expand_generator(input, pattern, block) do
-    quote do
-      unquote(input)
-      |> Stream.flat_map(fn unquote(pattern) -> unquote(block) end)
     end
   end
 
@@ -181,6 +174,13 @@ defmodule Streaming do
     quote generated: true do
       unquote(input)
       |> Stream.scan(unquote(init), unquote(scanner_fun))
+    end
+  end
+
+  defp expand_concat(input) do
+    quote do
+      unquote(input)
+      |> Stream.concat()
     end
   end
 
