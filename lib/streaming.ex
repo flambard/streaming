@@ -127,7 +127,8 @@ defmodule Streaming do
 
   defp expand_bitstring_generator(input, pattern, filters, block) do
     {:<<>>, _, vars} = pattern
-    rest = Macro.unique_var(:acc, __MODULE__)
+    rest = Macro.unique_var(:rest, __MODULE__)
+    underscore_rest = Macro.unique_var(:_rest, __MODULE__)
     body = expand_bitstring_generator_body(filters, block)
 
     quote do
@@ -137,7 +138,7 @@ defmodule Streaming do
           <<unquote_splicing(vars), unquote(rest)::binary>> -> {unquote(body), unquote(rest)}
           <<unquote(rest)::binary>> -> {:halt, unquote(rest)}
         end,
-        fn <<_rest::binary>> -> :ok end
+        fn <<unquote(underscore_rest)::binary>> -> :ok end
       )
     end
   end
