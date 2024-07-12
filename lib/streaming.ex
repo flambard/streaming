@@ -1,6 +1,8 @@
 defmodule Streaming do
   @moduledoc false
 
+  alias Streaming.MacroUtils
+
   defmacro streaming(args, block) when is_list(args) do
     {generators_and_filters, options} = Enum.split_while(args, &(not option?(&1)))
     expand_streaming(generators_and_filters, options, block)
@@ -95,17 +97,16 @@ defmodule Streaming do
           end
       end
 
-    for generator <- more_generators, reduce: inner_block do
+    for {generator, filters} <- more_generators, reduce: inner_block do
       block ->
         case generator do
-          {{:<<>>, _, fields}, filters} ->
-            {vars, [{:<-, _, [last_var, input]}]} = Enum.split(fields, -1)
-            pattern = quote do: <<unquote_splicing(vars), unquote(last_var)>>
+          {:<<>>, _, _} ->
+            {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(generator)
 
             input
-            |> expand_bitstring_generator(pattern, filters, block)
+            |> expand_bitstring_generator(binary_pattern, filters, block)
 
-          {{:<-, _, [pattern, input]}, filters} ->
+          {:<-, _, [pattern, input]} ->
             input
             |> expand_mapping_generator(pattern, filters, block)
         end
@@ -207,7 +208,7 @@ defmodule Streaming do
   end
 
   defp expand_transform(input, pattern, init, block, nil) do
-    reducer_fun = {:fn, [], inject_clause_argument(pattern, block)}
+    reducer_fun = {:fn, [], MacroUtils.inject_clause_argument(pattern, block)}
 
     quote generated: true do
       unquote(input)
@@ -217,7 +218,7 @@ defmodule Streaming do
 
   defp expand_transform(input, pattern, init, block, after_block) do
     start_fun = quote do: fn -> unquote(init) end
-    reducer_fun = {:fn, [], inject_clause_argument(pattern, block)}
+    reducer_fun = {:fn, [], MacroUtils.inject_clause_argument(pattern, block)}
     after_fun = {:fn, [], after_block}
 
     quote generated: true do
@@ -227,7 +228,7 @@ defmodule Streaming do
   end
 
   defp expand_scan(input, pattern, init, block) do
-    scanner_fun = {:fn, [], inject_clause_argument(pattern, block)}
+    scanner_fun = {:fn, [], MacroUtils.inject_clause_argument(pattern, block)}
 
     quote generated: true do
       unquote(input)
@@ -261,18 +262,6 @@ defmodule Streaming do
       end
     else
       stream
-    end
-  end
-
-  defp inject_clause_argument(pattern, block) do
-    for {:->, meta, [[arg], body]} <- block do
-      arglist =
-        case arg do
-          {:when, meta, [var, condition]} -> [{:when, meta, [pattern, var, condition]}]
-          arg -> [pattern, arg]
-        end
-
-      {:->, meta, [arglist, body]}
     end
   end
 
