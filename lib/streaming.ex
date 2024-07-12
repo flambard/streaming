@@ -65,73 +65,57 @@ defmodule Streaming do
   defp expand_streaming(generators_and_filters, options, block) do
     {:ok, do_block} = Keyword.fetch(block, :do)
 
-    [{inner_generator, filters} | more_generators] =
+    [{inner_generator, filters} | outer_generators] =
       group_filters_with_generators(generators_and_filters)
 
     inner_block =
-      case inner_generator do
-        {:<<>>, _, _} ->
-          {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(inner_generator)
+      cond do
+        init = Keyword.get(options, :transform) ->
+          after_block = Keyword.get(do_block, :after)
+          {pattern, input} = expand_feeding_generator(inner_generator, filters)
+          expand_transform(input, pattern, init, do_block, after_block)
 
-          cond do
-            init = Keyword.get(options, :transform) ->
-              vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
-              after_block = Keyword.get(do_block, :after)
+        init = Keyword.get(options, :scan) ->
+          {pattern, input} = expand_feeding_generator(inner_generator, filters)
+          expand_scan(input, pattern, init, do_block)
 
-              input
-              |> expand_bitstring_generator(binary_pattern, filters, vars)
-              |> expand_transform(vars, init, do_block, after_block)
-
-            init = Keyword.get(options, :scan) ->
-              vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
-
-              input
-              |> expand_bitstring_generator(binary_pattern, filters, vars)
-              |> expand_scan(vars, init, do_block)
-
-            true ->
-              expand_bitstring_generator(input, binary_pattern, filters, do_block)
-          end
-
-        {:<-, _, [pattern, input]} ->
-          cond do
-            init = Keyword.get(options, :transform) ->
-              after_block = Keyword.get(do_block, :after)
-
-              input
-              |> expand_pattern_filter(pattern)
-              |> expand_filters(pattern, filters)
-              |> expand_transform(pattern, init, do_block, after_block)
-
-            init = Keyword.get(options, :scan) ->
-              input
-              |> expand_pattern_filter(pattern)
-              |> expand_filters(pattern, filters)
-              |> expand_scan(pattern, init, do_block)
-
-            true ->
-              input
-              |> expand_mapping_generator(pattern, filters, do_block)
-          end
+        true ->
+          expand_generator(inner_generator, filters, do_block)
       end
 
-    for {generator, filters} <- more_generators, reduce: inner_block do
+    for {generator, filters} <- outer_generators, reduce: inner_block do
       block ->
-        case generator do
-          {:<<>>, _, _} ->
-            {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(generator)
-
-            input
-            |> expand_bitstring_generator(binary_pattern, filters, block)
-
-          {:<-, _, [pattern, input]} ->
-            input
-            |> expand_mapping_generator(pattern, filters, block)
-        end
+        generator
+        |> expand_generator(filters, block)
         |> expand_concat()
     end
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
+  end
+
+  defp expand_feeding_generator({:<<>>, _, _} = bitstring_generator, filters) do
+    {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(bitstring_generator)
+    vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
+
+    {vars, expand_bitstring_generator(input, binary_pattern, filters, vars)}
+  end
+
+  defp expand_feeding_generator({:<-, _, [pattern, input]}, filters) do
+    filtered_input =
+      input
+      |> expand_pattern_filter(pattern)
+      |> expand_filters(pattern, filters)
+
+    {pattern, filtered_input}
+  end
+
+  defp expand_generator({:<<>>, _, _} = generator, filters, do_block) do
+    {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(generator)
+    expand_bitstring_generator(input, binary_pattern, filters, do_block)
+  end
+
+  defp expand_generator({:<-, _, [pattern, input]}, filters, do_block) do
+    expand_mapping_generator(input, pattern, filters, do_block)
   end
 
   defp expand_mapping_generator(input, pattern, filters, block) do
