@@ -70,10 +70,28 @@ defmodule Streaming do
 
     inner_block =
       case inner_generator do
-        {:<<>>, _, fields} ->
-          {vars, [{:<-, _, [last_var, input]}]} = Enum.split(fields, -1)
-          pattern = quote do: <<unquote_splicing(vars), unquote(last_var)>>
-          expand_bitstring_generator(input, pattern, filters, do_block)
+        {:<<>>, _, _} ->
+          {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(inner_generator)
+
+          cond do
+            init = Keyword.get(options, :transform) ->
+              vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
+              after_block = Keyword.get(do_block, :after)
+
+              input
+              |> expand_bitstring_generator(binary_pattern, filters, vars)
+              |> expand_transform(vars, init, do_block, after_block)
+
+            init = Keyword.get(options, :scan) ->
+              vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
+
+              input
+              |> expand_bitstring_generator(binary_pattern, filters, vars)
+              |> expand_scan(vars, init, do_block)
+
+            true ->
+              expand_bitstring_generator(input, binary_pattern, filters, do_block)
+          end
 
         {:<-, _, [pattern, input]} ->
           cond do

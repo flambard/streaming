@@ -78,4 +78,20 @@ defmodule TransformTest do
     expected = [{1, "s"}, {2, "t"}, {3, "r"}, {4, "i"}, {5, "n"}, {6, "g"}]
     assert expected == Enum.to_list(tuple_stream)
   end
+
+  test "transform with bitstring generator" do
+    tuple_stream =
+      streaming <<i::8 <- "string">>, transform: StringIO.open("string") |> elem(1) do
+        pid ->
+          case IO.getn(pid, "", 1) do
+            :eof -> {:halt, pid}
+            char -> {[{char, i}], pid}
+          end
+      after
+        pid -> StringIO.close(pid)
+      end
+
+    expected = [{"s", 115}, {"t", 116}, {"r", 114}, {"i", 105}, {"n", 110}, {"g", 103}]
+    assert expected == Enum.to_list(tuple_stream)
+  end
 end

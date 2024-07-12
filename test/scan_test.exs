@@ -17,4 +17,14 @@ defmodule ScanTest do
 
     assert [1, 3, 6, 10, 15] == Enum.to_list(stream)
   end
+
+  test "scan with bitstring generator" do
+    stream =
+      streaming <<x::binary-size(2) <- "string">>, scan: [] do
+        acc -> [x | acc]
+      end
+
+    expected = [["st"], ["ri", "st"], ["ng", "ri", "st"]]
+    assert expected == Enum.to_list(stream)
+  end
 end
