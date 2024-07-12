@@ -56,4 +56,14 @@ defmodule BitstringTest do
     expected = [a: 26725, a: 27233, b: 26725, b: 27233]
     assert expected == Enum.to_list(stream)
   end
+
+  test "bitstring generator with inner mapper generator" do
+    stream =
+      streaming <<value::16 <- "heja">>, key <- [:a, :b] do
+        {key, value}
+      end
+
+    expected = [{:a, 26725}, {:b, 26725}, {:a, 27233}, {:b, 27233}]
+    assert expected == Enum.to_list(stream)
+  end
 end

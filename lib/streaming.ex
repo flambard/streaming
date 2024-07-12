@@ -97,12 +97,22 @@ defmodule Streaming do
           end
       end
 
-    for {{:<-, _, [pattern, input]}, filters} <- more_generators, reduce: inner_block do
+    for generator <- more_generators, reduce: inner_block do
       block ->
-        input
-        |> expand_pattern_filter(pattern)
-        |> expand_filters(pattern, filters)
-        |> expand_map(pattern, block)
+        case generator do
+          {{:<<>>, _, fields}, filters} ->
+            {vars, [{:<-, _, [last_var, input]}]} = Enum.split(fields, -1)
+            pattern = quote do: <<unquote_splicing(vars), unquote(last_var)>>
+
+            input
+            |> expand_bitstring_generator(pattern, filters, block)
+
+          {{:<-, _, [pattern, input]}, filters} ->
+            input
+            |> expand_pattern_filter(pattern)
+            |> expand_filters(pattern, filters)
+            |> expand_map(pattern, block)
+        end
         |> expand_concat()
     end
     |> expand_optional_uniq(options)
