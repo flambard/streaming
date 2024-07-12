@@ -9,7 +9,7 @@
 | Evaluation           | Eager                                | Lazy                   |
 | Returns              | Enumerable (or anything if reducing) | Stream                 |
 | Generators           | yes                                  | yes                    |
-| Bitstring generators | yes                                  | WIP                    |
+| Bitstring generators | yes                                  | yes                    |
 | Filters              | yes                                  | yes                    |
 | `uniq`               | yes                                  | yes                    |
 | `into`               | collection returned                  | collect as side-effect |
