@@ -91,9 +91,7 @@ defmodule Streaming do
 
             true ->
               input
-              |> expand_pattern_filter(pattern)
-              |> expand_filters(pattern, filters)
-              |> expand_map(pattern, do_block)
+              |> expand_mapping_generator(pattern, filters, do_block)
           end
       end
 
@@ -109,14 +107,19 @@ defmodule Streaming do
 
           {{:<-, _, [pattern, input]}, filters} ->
             input
-            |> expand_pattern_filter(pattern)
-            |> expand_filters(pattern, filters)
-            |> expand_map(pattern, block)
+            |> expand_mapping_generator(pattern, filters, block)
         end
         |> expand_concat()
     end
     |> expand_optional_uniq(options)
     |> expand_optional_into(options)
+  end
+
+  defp expand_mapping_generator(input, pattern, filters, block) do
+    input
+    |> expand_pattern_filter(pattern)
+    |> expand_filters(pattern, filters)
+    |> expand_map(pattern, block)
   end
 
   defp expand_bitstring_generator(input, pattern, filters, block) do
