@@ -4,10 +4,13 @@ defmodule Streaming.MixProject do
   def project do
     [
       app: :streaming,
+      description: "Stream comprehensions",
       version: "1.0.0",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      package: package(),
+      deps: deps(),
+      source_url: "https://github.com/flambard/streaming"
     ]
   end
 
@@ -19,5 +22,12 @@ defmodule Streaming.MixProject do
 
   defp deps do
     []
+  end
+
+  defp package do
+    [
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => "https://github.com/flambard/streaming"}
+    ]
   end
 end
