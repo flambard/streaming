@@ -72,4 +72,20 @@ defmodule ResourceTest do
     assert ["E", "l", "i", "x", "r"] == Enum.to_list(character_stream)
     assert {"", "Elixr"} == StringIO.contents(io_device)
   end
+
+  test "resource with outer generator" do
+    character_stream =
+      streaming string <- ["yes", "but", "no"], resource: StringIO.open(string) |> elem(1) do
+        pid ->
+          case IO.getn(pid, "", 1) do
+            :eof -> {:halt, pid}
+            char -> {[char], pid}
+          end
+      after
+        pid -> StringIO.close(pid)
+      end
+
+    expected = ["y", "e", "s", "b", "u", "t", "n", "o"]
+    assert expected == Enum.to_list(character_stream)
+  end
 end

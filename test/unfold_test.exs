@@ -30,4 +30,15 @@ defmodule UnfoldTest do
 
     assert [5, 4, 3, 2, 1] == Enum.to_list(multiples_stream)
   end
+
+  test "unfold with outer generator" do
+    multiples_stream =
+      streaming x <- [1, 10, 100], unfold: 3 do
+        0 -> nil
+        n -> {n * x, n - 1}
+      end
+
+    expected = [3, 2, 1, 30, 20, 10, 300, 200, 100]
+    assert expected == Enum.to_list(multiples_stream)
+  end
 end

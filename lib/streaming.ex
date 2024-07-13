@@ -57,12 +57,32 @@ defmodule Streaming do
     |> expand_optional_into(simple_options)
   end
 
-  defp expand_streaming_body([], [{:unfold, init}], do: do_block) do
-    expand_unfold(init, do_block)
+  defp expand_streaming_body(generators_and_filters, [{:unfold, init}], block) do
+    [do: do_block] = block
+
+    outer_generators = group_filters_with_generators(generators_and_filters)
+    inner_block = expand_unfold(init, do_block)
+
+    for {generator, filters} <- outer_generators, reduce: inner_block do
+      block ->
+        generator
+        |> expand_generator(filters, block)
+        |> expand_concat()
+    end
   end
 
-  defp expand_streaming_body([], [{:resource, resource}], do: do_block, after: after_block) do
-    expand_resource(resource, do_block, after_block)
+  defp expand_streaming_body(generators_and_filters, [{:resource, resource}], block) do
+    [do: do_block, after: after_block] = block
+
+    outer_generators = group_filters_with_generators(generators_and_filters)
+    inner_block = expand_resource(resource, do_block, after_block)
+
+    for {generator, filters} <- outer_generators, reduce: inner_block do
+      block ->
+        generator
+        |> expand_generator(filters, block)
+        |> expand_concat()
+    end
   end
 
   defp expand_streaming_body(generators_and_filters, options, block) do
