@@ -1,6 +1,7 @@
 defmodule Streaming do
-  @moduledoc false
-
+  @moduledoc """
+  Stream comprehensions allows you to quickly create streams with a tidy syntax.
+  """
   alias Streaming.MacroUtils
 
   defmacro streaming(args, block) when is_list(args) do
