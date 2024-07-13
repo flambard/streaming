@@ -26,7 +26,7 @@ defmodule Streaming do
   Generate a stream of all permutations of x, y, and z.
   ```elixir
   streaming x <- 1..10, y <- 11..20, z <- 21..30 do
-  {x, y, z}
+    {x, y, z}
   end
   ```
 
@@ -35,7 +35,7 @@ defmodule Streaming do
   users = [user: "john", admin: "meg", guest: "barbara"]
 
   streaming {type, name} when type != :guest <- users do
-  String.upcase(name)
+    String.upcase(name)
   end
   |> Enum.to_list()
 
@@ -45,7 +45,7 @@ defmodule Streaming do
   Filter for keeping only even numbers
   ```elixir
   streaming x <- 1..100, rem(y, 2) == 0 do
-  x
+    x
   end
   |> Enum.take(3)
 
@@ -55,7 +55,7 @@ defmodule Streaming do
   `uniq` works like expected.
   ```elixir
   streaming x <- ~c"ABBA", uniq: true do
-  x + 32
+    x + 32
   end
   |> Enum.to_list()
 
@@ -66,7 +66,7 @@ defmodule Streaming do
   [`Stream.unfold/2`](https://hexdocs.pm/elixir/Stream.html#unfold/2).
   ```elixir
   streaming unfold: 1 do
-  n -> {n, n * 2}
+    n -> {n, n * 2}
   end
   |> Enum.take(10)
 
@@ -77,7 +77,7 @@ defmodule Streaming do
   (but not [`Stream.scan/2`](https://hexdocs.pm/elixir/Stream.html#scan/2))
   ```elixir
   streaming x <- 1..5, scan: 0 do
-  acc -> x + acc
+    acc -> x + acc
   end
   |> Enum.to_list()
 
@@ -88,13 +88,13 @@ defmodule Streaming do
   when using a resource.
   ```elixir
   streaming resource: StringIO.open("string") |> elem(1) do
-  pid ->
-    case IO.getn(pid, "", 1) do
-      :eof -> {:halt, pid}
-      char -> {[char], pid}
-    end
+    pid ->
+      case IO.getn(pid, "", 1) do
+        :eof -> {:halt, pid}
+        char -> {[char], pid}
+      end
   after
-  pid -> StringIO.close(pid)
+    pid -> StringIO.close(pid)
   end
   |> Enum.to_list()
 
@@ -105,13 +105,13 @@ defmodule Streaming do
   transforming.
   ```elixir
   streaming i <- 1..100, transform: StringIO.open("string") |> elem(1) do
-  pid ->
-    case IO.getn(pid, "", 1) do
-      :eof -> {:halt, pid}
-      char -> {[{i, char}], pid}
-    end
+    pid ->
+      case IO.getn(pid, "", 1) do
+        :eof -> {:halt, pid}
+        char -> {[{i, char}], pid}
+      end
   after
-  pid -> StringIO.close(pid)
+    pid -> StringIO.close(pid)
   end
   |> Enum.to_list()
 
@@ -123,7 +123,7 @@ defmodule Streaming do
   pixels = <<213, 45, 132, 64, 76, 32, 76, 0, 0, 234, 32, 15, 34>>
 
   streaming <<r::8, g::8, b::8 <- pixels>> do
-  {r, g, b}
+    {r, g, b}
   end
   |> Enum.to_list()
 
@@ -133,13 +133,13 @@ defmodule Streaming do
   Bitstring generators can be combined with `scan` and `transform`!
   ```elixir
   streaming <<i::8 <- "string">>, transform: StringIO.open("string") |> elem(1) do
-  pid ->
-    case IO.getn(pid, "", 1) do
-      :eof -> {:halt, pid}
-      char -> {[{char, i}], pid}
-    end
+    pid ->
+      case IO.getn(pid, "", 1) do
+        :eof -> {:halt, pid}
+        char -> {[{char, i}], pid}
+      end
   after
-  pid -> StringIO.close(pid)
+    pid -> StringIO.close(pid)
   end
   |> Enum.to_list()
 
@@ -154,7 +154,7 @@ defmodule Streaming do
   io_stream = IO.stream(io_device, :line)
 
   streaming s <- ["hello", "there"], into: io_stream do
-  String.capitalize(s)
+    String.capitalize(s)
   end
   |> Enum.to_list()
 
