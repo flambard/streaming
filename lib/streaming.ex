@@ -52,50 +52,47 @@ defmodule Streaming do
     {simple_options, special_options} = Keyword.split(options, [:uniq, :into])
 
     generators_and_filters
+    |> group_filters_with_generators()
     |> expand_streaming_body(special_options, block)
     |> expand_optional_uniq(simple_options)
     |> expand_optional_into(simple_options)
   end
 
-  defp expand_streaming_body(generators_and_filters, [unfold: init], block) do
+  defp expand_streaming_body(outer_generators, [unfold: init], block) do
     [do: do_block] = block
 
-    outer_generators = group_filters_with_generators(generators_and_filters)
     inner_block = expand_unfold(init, do_block)
-
     expand_outer_generators(outer_generators, inner_block)
   end
 
-  defp expand_streaming_body(generators_and_filters, [resource: resource], block) do
+  defp expand_streaming_body(outer_generators, [resource: resource], block) do
     [do: do_block, after: after_block] = block
 
-    outer_generators = group_filters_with_generators(generators_and_filters)
     inner_block = expand_resource(resource, do_block, after_block)
-
     expand_outer_generators(outer_generators, inner_block)
   end
 
-  defp expand_streaming_body(generators_and_filters, options, block) do
+  defp expand_streaming_body([{generator, filters} | outer_generators], [transform: init], block) do
+    {:ok, do_block} = Keyword.fetch(block, :do)
+    after_block = Keyword.get(do_block, :after, nil)
+
+    {pattern, input} = expand_feeding_generator(generator, filters)
+    inner_block = expand_transform(input, pattern, init, do_block, after_block)
+    expand_outer_generators(outer_generators, inner_block)
+  end
+
+  defp expand_streaming_body([{generator, filters} | outer_generators], [scan: init], block) do
+    [do: do_block] = block
+
+    {pattern, input} = expand_feeding_generator(generator, filters)
+    inner_block = expand_scan(input, pattern, init, do_block)
+    expand_outer_generators(outer_generators, inner_block)
+  end
+
+  defp expand_streaming_body([{generator, filters} | outer_generators], [], block) do
     {:ok, do_block} = Keyword.fetch(block, :do)
 
-    [{inner_generator, filters} | outer_generators] =
-      group_filters_with_generators(generators_and_filters)
-
-    inner_block =
-      case options do
-        [transform: init] ->
-          after_block = Keyword.get(do_block, :after)
-          {pattern, input} = expand_feeding_generator(inner_generator, filters)
-          expand_transform(input, pattern, init, do_block, after_block)
-
-        [scan: init] ->
-          {pattern, input} = expand_feeding_generator(inner_generator, filters)
-          expand_scan(input, pattern, init, do_block)
-
-        [] ->
-          expand_generator(inner_generator, filters, do_block)
-      end
-
+    inner_block = expand_generator(generator, filters, do_block)
     expand_outer_generators(outer_generators, inner_block)
   end
 
