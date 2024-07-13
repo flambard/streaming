@@ -48,38 +48,41 @@ defmodule Streaming do
   ### Private functions
   ###
 
-  defp expand_streaming([], [{:unfold, init} | options], do: do_block) do
-    init
-    |> expand_unfold(do_block)
-    |> expand_optional_uniq(options)
-    |> expand_optional_into(options)
-  end
-
-  defp expand_streaming([], [{:resource, resource} | options], do: do_block, after: after_block) do
-    resource
-    |> expand_resource(do_block, after_block)
-    |> expand_optional_uniq(options)
-    |> expand_optional_into(options)
-  end
-
   defp expand_streaming(generators_and_filters, options, block) do
+    {simple_options, special_options} = Keyword.split(options, [:uniq, :into])
+
+    generators_and_filters
+    |> expand_streaming_body(special_options, block)
+    |> expand_optional_uniq(simple_options)
+    |> expand_optional_into(simple_options)
+  end
+
+  defp expand_streaming_body([], [{:unfold, init}], do: do_block) do
+    expand_unfold(init, do_block)
+  end
+
+  defp expand_streaming_body([], [{:resource, resource}], do: do_block, after: after_block) do
+    expand_resource(resource, do_block, after_block)
+  end
+
+  defp expand_streaming_body(generators_and_filters, options, block) do
     {:ok, do_block} = Keyword.fetch(block, :do)
 
     [{inner_generator, filters} | outer_generators] =
       group_filters_with_generators(generators_and_filters)
 
     inner_block =
-      cond do
-        init = Keyword.get(options, :transform) ->
+      case options do
+        [transform: init] ->
           after_block = Keyword.get(do_block, :after)
           {pattern, input} = expand_feeding_generator(inner_generator, filters)
           expand_transform(input, pattern, init, do_block, after_block)
 
-        init = Keyword.get(options, :scan) ->
+        [scan: init] ->
           {pattern, input} = expand_feeding_generator(inner_generator, filters)
           expand_scan(input, pattern, init, do_block)
 
-        true ->
+        [] ->
           expand_generator(inner_generator, filters, do_block)
       end
 
@@ -89,8 +92,6 @@ defmodule Streaming do
         |> expand_generator(filters, block)
         |> expand_concat()
     end
-    |> expand_optional_uniq(options)
-    |> expand_optional_into(options)
   end
 
   defp expand_feeding_generator({:<<>>, _, _} = bitstring_generator, filters) do
