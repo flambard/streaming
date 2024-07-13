@@ -1,6 +1,7 @@
 # Streaming
 
-`streaming` is a [stream](https://hexdocs.pm/elixir/Stream.html) comprehension macro for Elixir inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1).
+`streaming` is a [stream](https://hexdocs.pm/elixir/Stream.html) comprehension macro for Elixir
+inspired by [`for`](https://hexdocs.pm/elixir/Kernel.SpecialForms.html#for/1).
 
 ## `streaming` vs `for`
 
@@ -83,7 +84,8 @@ end
 => [1, 3, 6, 10, 15]
 ```
 
-Stream values from a resource and close it when the stream ends. The `after` block is required when using a resource.
+Stream values from a resource and close it when the stream ends. The `after` block is required
+when using a resource.
 ```elixir
 streaming resource: StringIO.open("string") |> elem(1) do
   pid ->
@@ -99,7 +101,8 @@ end
 => ["s", "t", "r", "i", "n", "g"]
 ```
 
-Transforming data from a resource with an enumerable. The `after` block is optional when transforming.
+Transforming data from a resource with an enumerable. The `after` block is optional when
+transforming.
 ```elixir
 streaming i <- 1..100, transform: StringIO.open("string") |> elem(1) do
   pid ->
