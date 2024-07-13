@@ -72,7 +72,7 @@ end
 => [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 ```
 
-Sugar for [`Stream.scan/3`](https://hexdocs.pm/elixir/Stream.html#scan/3) is included
+Support for [`Stream.scan/3`](https://hexdocs.pm/elixir/Stream.html#scan/3) is included
 (but not [`Stream.scan/2`](https://hexdocs.pm/elixir/Stream.html#scan/2))
 ```elixir
 streaming x <- 1..5, scan: 0 do
@@ -83,7 +83,7 @@ end
 => [1, 3, 6, 10, 15]
 ```
 
-Stream values from a resource and close it when the stream ends.
+Stream values from a resource and close it when the stream ends. The `after` block is required when using a resource.
 ```elixir
 streaming resource: StringIO.open("string") |> elem(1) do
   pid ->
@@ -99,7 +99,7 @@ end
 => ["s", "t", "r", "i", "n", "g"]
 ```
 
-Transforming data from a resource with an enumerable.
+Transforming data from a resource with an enumerable. The `after` block is optional when transforming.
 ```elixir
 streaming i <- 1..100, transform: StringIO.open("string") |> elem(1) do
   pid ->
@@ -114,6 +114,35 @@ end
 
 => [{1, "s"}, {2, "t"}, {3, "r"}, {4, "i"}, {5, "n"}, {6, "g"}]
 ```
+
+Bitstring generators are supported.
+```elixir
+pixels = <<213, 45, 132, 64, 76, 32, 76, 0, 0, 234, 32, 15, 34>>
+
+streaming <<r::8, g::8, b::8 <- pixels>> do
+  {r, g, b}
+end
+|> Enum.to_list()
+
+=> [{213, 45, 132}, {64, 76, 32}, {76, 0, 0}, {234, 32, 15}]
+```
+
+Bitstring generators can be combined with `scan` and `transform`!
+```elixir
+streaming <<i::8 <- "string">>, transform: StringIO.open("string") |> elem(1) do
+  pid ->
+    case IO.getn(pid, "", 1) do
+      :eof -> {:halt, pid}
+      char -> {[{char, i}], pid}
+    end
+after
+  pid -> StringIO.close(pid)
+end
+|> Enum.to_list()
+
+=> [{"s", 115}, {"t", 116}, {"r", 114}, {"i", 105}, {"n", 110}, {"g", 103}]
+```
+
 
 Note that `into` uses [`Stream.into/2`](https://hexdocs.pm/elixir/Stream.html#into/3)
 and streams values into a collectable _as a side-effect_.
