@@ -57,32 +57,22 @@ defmodule Streaming do
     |> expand_optional_into(simple_options)
   end
 
-  defp expand_streaming_body(generators_and_filters, [{:unfold, init}], block) do
+  defp expand_streaming_body(generators_and_filters, [unfold: init], block) do
     [do: do_block] = block
 
     outer_generators = group_filters_with_generators(generators_and_filters)
     inner_block = expand_unfold(init, do_block)
 
-    for {generator, filters} <- outer_generators, reduce: inner_block do
-      block ->
-        generator
-        |> expand_generator(filters, block)
-        |> expand_concat()
-    end
+    expand_outer_generators(outer_generators, inner_block)
   end
 
-  defp expand_streaming_body(generators_and_filters, [{:resource, resource}], block) do
+  defp expand_streaming_body(generators_and_filters, [resource: resource], block) do
     [do: do_block, after: after_block] = block
 
     outer_generators = group_filters_with_generators(generators_and_filters)
     inner_block = expand_resource(resource, do_block, after_block)
 
-    for {generator, filters} <- outer_generators, reduce: inner_block do
-      block ->
-        generator
-        |> expand_generator(filters, block)
-        |> expand_concat()
-    end
+    expand_outer_generators(outer_generators, inner_block)
   end
 
   defp expand_streaming_body(generators_and_filters, options, block) do
@@ -106,12 +96,7 @@ defmodule Streaming do
           expand_generator(inner_generator, filters, do_block)
       end
 
-    for {generator, filters} <- outer_generators, reduce: inner_block do
-      block ->
-        generator
-        |> expand_generator(filters, block)
-        |> expand_concat()
-    end
+    expand_outer_generators(outer_generators, inner_block)
   end
 
   defp expand_feeding_generator({:<<>>, _, _} = bitstring_generator, filters) do
@@ -137,6 +122,15 @@ defmodule Streaming do
 
   defp expand_generator({:<-, _, [pattern, input]}, filters, do_block) do
     expand_mapping_generator(input, pattern, filters, do_block)
+  end
+
+  defp expand_outer_generators(generators, inner_block) do
+    for {generator, filters} <- generators, reduce: inner_block do
+      block ->
+        generator
+        |> expand_generator(filters, block)
+        |> expand_concat()
+    end
   end
 
   defp expand_mapping_generator(input, pattern, filters, block) do
