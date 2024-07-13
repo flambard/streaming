@@ -289,7 +289,7 @@ defmodule Streaming do
   end
 
   defp generator?({:<<>>, _, fields}) do
-    fields |> List.last() |> generator?()
+    match?({:<-, _, [_, _]}, List.last(fields))
   end
 
   defp generator?(arg) do
