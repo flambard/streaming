@@ -13,40 +13,34 @@ defmodule Streaming do
   ###
 
   defmacro streaming(arg, block) do
-    if Keyword.keyword?(arg) do
-      expand_streaming([], arg, block)
-    else
-      expand_streaming([arg], [], block)
-    end
+    expand_streaming([arg], block)
   end
 
   defmacro streaming(arg1, arg2, block) do
-    if Keyword.keyword?(arg2) do
-      expand_streaming([arg1], arg2, block)
-    else
-      expand_streaming([arg1, arg2], [], block)
-    end
+    expand_streaming([arg1, arg2], block)
   end
 
   defmacro streaming(arg1, arg2, arg3, block) do
-    if Keyword.keyword?(arg3) do
-      expand_streaming([arg1, arg2], arg3, block)
-    else
-      expand_streaming([arg1, arg2, arg3], [], block)
-    end
+    expand_streaming([arg1, arg2, arg3], block)
   end
 
   defmacro streaming(arg1, arg2, arg3, arg4, block) do
-    if Keyword.keyword?(arg4) do
-      expand_streaming([arg1, arg2, arg3], arg4, block)
-    else
-      expand_streaming([arg1, arg2, arg3, arg4], [], block)
-    end
+    expand_streaming([arg1, arg2, arg3, arg4], block)
   end
 
   ###
   ### Private functions
   ###
+
+  defp expand_streaming(args, block) do
+    {generators, [options]} = Enum.split(args, -1)
+
+    if Keyword.keyword?(options) do
+      expand_streaming(generators, options, block)
+    else
+      expand_streaming(args, [], block)
+    end
+  end
 
   defp expand_streaming(generators_and_filters, options, block) do
     {simple_options, special_options} = Keyword.split(options, [:uniq, :into])
