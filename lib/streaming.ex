@@ -82,27 +82,12 @@ defmodule Streaming do
 
   defp expand_feeding_generator({:<<>>, _, _} = bitstring_generator, filters) do
     {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(bitstring_generator)
-    vars = MacroUtils.vars_from_binary_pattern(binary_pattern)
-
-    {vars, expand_bitstring_generator(input, binary_pattern, filters, vars)}
+    var_list = MacroUtils.vars_from_binary_pattern(binary_pattern)
+    {var_list, expand_bitstring_generator(input, binary_pattern, filters, var_list)}
   end
 
   defp expand_feeding_generator({:<-, _, [pattern, input]}, filters) do
-    filtered_input =
-      input
-      |> expand_pattern_filter(pattern)
-      |> expand_filters(pattern, filters)
-
-    {pattern, filtered_input}
-  end
-
-  defp expand_generator({:<<>>, _, _} = generator, filters, do_block) do
-    {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(generator)
-    expand_bitstring_generator(input, binary_pattern, filters, do_block)
-  end
-
-  defp expand_generator({:<-, _, [pattern, input]}, filters, do_block) do
-    expand_mapping_generator(input, pattern, filters, do_block)
+    {pattern, expand_filter(input, pattern, filters)}
   end
 
   defp expand_outer_generators(generators, inner_block) do
@@ -114,10 +99,18 @@ defmodule Streaming do
     end
   end
 
+  defp expand_generator({:<<>>, _, _} = generator, filters, do_block) do
+    {binary_pattern, input} = MacroUtils.unarrow_bitstring_generator(generator)
+    expand_bitstring_generator(input, binary_pattern, filters, do_block)
+  end
+
+  defp expand_generator({:<-, _, [pattern, input]}, filters, do_block) do
+    expand_mapping_generator(input, pattern, filters, do_block)
+  end
+
   defp expand_mapping_generator(input, pattern, filters, block) do
     input
-    |> expand_pattern_filter(pattern)
-    |> expand_filters(pattern, filters)
+    |> expand_filter(pattern, filters)
     |> expand_map(pattern, block)
   end
 
@@ -155,29 +148,25 @@ defmodule Streaming do
     end
   end
 
-  defp expand_filters(input, _pattern, []) do
-    input
-  end
-
-  defp expand_filters(input, pattern, filters) do
+  defp expand_filter(input, pattern, filters) do
     filter_body = expand_conditions(filters)
 
-    quote do
+    quote generated: true do
       unquote(input)
-      |> Stream.filter(fn unquote(pattern) -> unquote(filter_body) end)
+      |> Stream.filter(fn
+        unquote(pattern) -> unquote(filter_body)
+        _ -> false
+      end)
     end
+  end
+
+  defp expand_conditions([]) do
+    true
   end
 
   defp expand_conditions([filter | more_filters]) do
     for f <- more_filters, reduce: filter do
       other_filters -> quote do: unquote(other_filters) && unquote(f)
-    end
-  end
-
-  defp expand_pattern_filter(input, pattern) do
-    quote generated: true do
-      unquote(input)
-      |> Stream.filter(&match?(unquote(pattern), &1))
     end
   end
 
