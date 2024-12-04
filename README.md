@@ -44,7 +44,7 @@ end
 
 Filter for keeping only even numbers
 ```elixir
-streaming x <- 1..100, rem(y, 2) == 0 do
+streaming x <- 1..100, rem(x, 2) == 0 do
   x
 end
 |> Enum.take(3)
